@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Reports — Procurement{% endblock %}
+{% block content %}
+<h1>Generated Reports</h1>
+<p class="meta">HTML reports saved in the <code>reports/</code> directory</p>
+
+{% if files %}
+<table>
+  <thead><tr><th>Filename</th><th>Size</th><th>Generated</th><th>Action</th></tr></thead>
+  <tbody>
+  {% for f in files %}
+  <tr>
+    <td>{{ f.name }}</td>
+    <td>{{ f.size }}</td>
+    <td>{{ f.modified }}</td>
+    <td><a class="link" href="/reports/{{ f.name }}" target="_blank">Open</a></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="section">
+  <p><em>No reports generated yet. Run <code>python3 run_reports.py daily</code> to generate reports.</em></p>
+</div>
+{% endif %}
+{% endblock %}

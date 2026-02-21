@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}{{ agency_name }} — Procurement{% endblock %}
+{% block content %}
+<h1>{{ agency_name }}</h1>
+<p class="meta">Agency deep-dive report</p>
+
+<div class="stat-grid">
+  <div class="stat-box"><div class="label">Total Opps</div><div class="value">{{ stats.total_opportunities }}</div></div>
+  <div class="stat-box"><div class="label">Small Business</div><div class="value">{{ stats.small_biz_count }}</div></div>
+  <div class="stat-box"><div class="label">Unique NAICS</div><div class="value">{{ stats.unique_naics }}</div></div>
+  <div class="stat-box"><div class="label">Latest</div><div class="value">{{ (stats.latest_opportunity or '')[:10] }}</div></div>
+</div>
+
+<h2>Top NAICS Codes</h2>
+<table>
+  <thead><tr><th>NAICS</th><th>Description</th><th>Count</th></tr></thead>
+  <tbody>
+  {% for n in top_naics %}
+  <tr><td>{{ n.naics_code }}</td><td>{{ n.naics_description or '' }}</td><td>{{ n.count }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<h2>Set-Aside Distribution</h2>
+<table>
+  <thead><tr><th>Type</th><th>Count</th></tr></thead>
+  <tbody>
+  {% for s in set_aside %}
+  <tr><td>{{ s.set_aside }}</td><td>{{ s.count }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% if structured_rates %}
+<h2>Labor Category Rates (from Pricing Worksheets)</h2>
+<table>
+  <thead><tr><th>Category</th><th>Min Rate</th><th>Max Rate</th><th>Avg Rate</th><th>Total Hours</th><th>Solicitations</th></tr></thead>
+  <tbody>
+  {% for r in structured_rates %}
+  <tr>
+    <td>{{ r.category_name }}</td>
+    <td>{% if r.min_rate %}${{ "%.2f"|format(r.min_rate) }}{% else %}&mdash;{% endif %}</td>
+    <td>{% if r.max_rate %}${{ "%.2f"|format(r.max_rate) }}{% else %}&mdash;{% endif %}</td>
+    <td>{% if r.avg_rate %}${{ "%.2f"|format(r.avg_rate) }}{% else %}&mdash;{% endif %}</td>
+    <td>{{ "%.0f"|format(r.total_hours) if r.total_hours else '' }}</td>
+    <td>{{ r.solicitation_count }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if labor_cats %}
+<h2>Common Labor Categories (from SOW/PWS Text)</h2>
+<table>
+  <thead><tr><th>Category</th><th>Occurrences</th></tr></thead>
+  <tbody>
+  {% for cat, count in labor_cats %}
+  <tr><td>{{ cat }}</td><td>{{ count }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if doc_opps %}
+<h2>Opportunities with Parsed Documents</h2>
+<table>
+  <thead><tr><th>Notice ID</th><th>Title</th><th>Posted</th><th>Docs</th><th>Roles</th></tr></thead>
+  <tbody>
+  {% for d in doc_opps %}
+  <tr>
+    <td><a class="link" href="/opportunity/{{ d.notice_id }}">{{ d.notice_id }}</a></td>
+    <td>{{ d.title|truncate(50) }}</td>
+    <td>{{ d.posted_date }}</td>
+    <td>{{ d.doc_count }}</td>
+    <td>{{ d.roles }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if forecast %}
+<h2>FY26 Forecast ({{ forecast|length }})</h2>
+<table>
+  <thead><tr><th>Project</th><th>Office</th><th>Est. Amount</th><th>Strategy</th><th>Quarter</th><th>Est. Award</th></tr></thead>
+  <tbody>
+  {% for f in forecast %}
+  <tr>
+    <td>{{ f.project_description }}</td>
+    <td><span title="{{ f.office_name }}">{{ f.office_code }}</span></td>
+    <td>{{ f.estimated_amount_category }}</td>
+    <td>{{ f.acquisition_strategy }}</td>
+    <td>{{ f.estimated_quarter }}</td>
+    <td>{{ f.estimated_award_date or '' }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<h2>All Opportunities</h2>
+<table>
+  <thead><tr><th>Title</th><th>Sol #</th><th>NAICS</th><th>Set-Aside</th><th>Posted</th><th>Deadline</th></tr></thead>
+  <tbody>
+  {% for opp in opportunities %}
+  <tr>
+    <td><a class="link" href="/opportunity/{{ opp.notice_id }}">{{ opp.title|truncate(55) }}</a></td>
+    <td>{{ opp.solicitation_number or '' }}</td>
+    <td>{{ opp.naics_code or '' }}</td>
+    <td>{{ opp.set_aside or '' }}</td>
+    <td>{{ opp.posted_date or '' }}</td>
+    <td>{{ opp.response_deadline or '' }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

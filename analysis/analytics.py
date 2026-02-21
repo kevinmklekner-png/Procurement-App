@@ -3,6 +3,9 @@ Analytics module for federal procurement data.
 Generate insights that can be sold as reports or subscriptions.
 """
 
+import os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from database import ProcurementDatabase
 from datetime import datetime, timedelta
 import json
@@ -11,9 +14,14 @@ import json
 class ProcurementAnalytics:
     """Analytics engine for federal procurement data."""
     
-    def __init__(self, db_path: str = 'federal_procurement.db'):
+    def __init__(self, db_path: str = None, db=None):
         """Initialize with database connection."""
-        self.db = ProcurementDatabase(db_path)
+        if db is not None:
+            self.db = db
+        elif db_path is not None:
+            self.db = ProcurementDatabase(db_path)
+        else:
+            self.db = ProcurementDatabase()
     
     def agency_opportunity_report(self, limit: int = 20) -> list:
         """

@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Database
+*.db
+
+# Data files
+data/
+reports/
+market_summary.json
+
+# Downloaded/generated HTML
+Treasury Opportunity Data.*
+treasury_*.html
+
+# Environment
+.env

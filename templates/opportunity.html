@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}{{ meta.title or notice_id }} — Procurement{% endblock %}
+{% block content %}
+<h1>{{ meta.title or notice_id }}</h1>
+<p class="meta">Notice ID: {{ notice_id }}</p>
+
+<div class="section">
+  <h2>Metadata</h2>
+  <table>
+    <tbody>
+    <tr><td><strong>Department</strong></td><td>{{ meta.department or '' }}</td></tr>
+    <tr><td><strong>Solicitation #</strong></td><td>{{ meta.solicitation_number or '' }}</td></tr>
+    <tr><td><strong>NAICS</strong></td><td>{{ meta.naics_code or '' }} — {{ meta.naics_description or '' }}</td></tr>
+    <tr><td><strong>Set-Aside</strong></td><td>{{ meta.set_aside or '' }}</td></tr>
+    <tr><td><strong>Type</strong></td><td>{{ meta.type_of_notice or '' }}</td></tr>
+    <tr><td><strong>Posted</strong></td><td>{{ meta.posted_date or '' }}</td></tr>
+    <tr><td><strong>Deadline</strong></td><td>{{ meta.response_deadline or '' }}</td></tr>
+    <tr><td><strong>Place of Performance</strong></td><td>{{ meta.place_of_performance_city or '' }}, {{ meta.place_of_performance_state or '' }}</td></tr>
+    <tr><td><strong>Contact</strong></td><td>{{ meta.primary_contact_name or '' }} — {{ meta.primary_contact_email or '' }}</td></tr>
+    {% if meta.url %}<tr><td><strong>SAM.gov Link</strong></td><td><a class="link" href="{{ meta.url }}" target="_blank">View on SAM.gov</a></td></tr>{% endif %}
+    </tbody>
+  </table>
+</div>
+
+{% if documents %}
+<h2>Documents</h2>
+<table>
+  <thead><tr><th>Filename</th><th>Type</th><th>Role</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for d in documents %}
+  <tr>
+    <td>{{ d.filename or '' }}</td>
+    <td>{{ d.file_type or '' }}</td>
+    <td>{{ d.doc_role or '' }}</td>
+    <td>{{ d.parse_status or '' }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% for sow in sow_analysis %}
+<div class="section">
+  <h2>SOW/PWS Analysis (confidence: {{ "%.0f"|format(sow.confidence_score * 100) if sow.confidence_score else 0 }}%)</h2>
+  {% if sow.scope_summary %}
+  <h3>Scope</h3>
+  <p>{{ sow.scope_summary }}</p>
+  {% endif %}
+  {% if sow.period_of_performance %}
+  <h3>Period of Performance</h3>
+  <p>{{ sow.period_of_performance }}</p>
+  {% endif %}
+  {% if sow.key_tasks %}
+  <h3>Key Tasks</h3>
+  <ul>{% for t in sow.key_tasks %}<li>{{ t }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if sow.labor_categories %}
+  <h3>Labor Categories</h3>
+  <ul>{% for c in sow.labor_categories %}<li>{{ c }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if sow.deliverables %}
+  <h3>Deliverables</h3>
+  <ul>{% for d in sow.deliverables %}<li>{{ d }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if sow.compliance_reqs %}
+  <h3>Compliance Requirements</h3>
+  <ul>{% for r in sow.compliance_reqs %}<li>{{ r }}</li>{% endfor %}</ul>
+  {% endif %}
+</div>
+{% endfor %}
+
+{% if labor_groups %}
+<div class="section">
+  <h2>Structured Labor Categories ({{ labor_groups|length }} categories, {{ labor_total }} total rows)</h2>
+  <p style="margin-bottom:8px">
+    <input type="text" id="laborFilter" placeholder="Filter categories..." onkeyup="filterLabor()"
+           style="padding:4px 8px; width:300px; border:1px solid #ccc; border-radius:4px;">
+  </p>
+  <table id="laborTable">
+    <thead>
+      <tr>
+        <th>Category</th>
+        {% if has_clin %}<th>CLIN</th>{% endif %}
+        <th>Rate Range</th>
+        <th>Total Hours</th>
+        {% if has_site %}<th>Site</th>{% endif %}
+        <th>Periods</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for g in labor_groups %}
+    <tr class="labor-row" onclick="toggleDetail('labor-detail-{{ loop.index }}')" style="cursor:pointer">
+      <td>
+        <strong>{{ g.category_name }}</strong>{% if g.category_title %} <small style="color:#666">({{ g.category_title }})</small>{% endif %}
+      </td>
+      {% if has_clin %}<td>{{ g.clin_number or '' }}</td>{% endif %}
+      <td>
+        {% if g.min_rate is not none %}
+          {% if g.min_rate == g.max_rate %}
+            ${{ "%.2f"|format(g.min_rate) }}/hr
+          {% else %}
+            ${{ "%.2f"|format(g.min_rate) }} &ndash; ${{ "%.2f"|format(g.max_rate) }}/hr
+          {% endif %}
+        {% else %}
+          <em>template</em>
+        {% endif %}
+      </td>
+      <td>{{ "%.0f"|format(g.total_hours) if g.total_hours else '' }}</td>
+      {% if has_site %}<td>{{ g.site_type or '' }}</td>{% endif %}
+      <td>{{ g.periods|length }}{% if g.periods|length > 1 %} <small style="color:#888">&#9660;</small>{% endif %}</td>
+    </tr>
+    {% if g.periods|length > 1 %}
+    <tr id="labor-detail-{{ loop.index }}" style="display:none">
+      <td colspan="{{ 4 + (1 if has_clin else 0) + (1 if has_site else 0) }}" style="padding:4px 20px; background:#f8f8f8;">
+        <table style="width:auto; margin:0; font-size:0.9em;">
+          <thead><tr><th>Period</th><th>Rate</th><th>Hours</th><th>Extended</th></tr></thead>
+          <tbody>
+          {% for p in g.periods %}
+          <tr>
+            <td>{{ p.period_name }}</td>
+            <td>{% if p.hourly_rate is not none %}${{ "%.2f"|format(p.hourly_rate) }}{% else %}&mdash;{% endif %}</td>
+            <td>{{ "%.0f"|format(p.estimated_hours) if p.estimated_hours else '' }}</td>
+            <td>{% if p.extended_price %}${{ "%.2f"|format(p.extended_price) }}{% endif %}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </td>
+    </tr>
+    {% endif %}
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<script>
+function toggleDetail(id) {
+  var el = document.getElementById(id);
+  if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+function filterLabor() {
+  var filter = document.getElementById('laborFilter').value.toLowerCase();
+  var rows = document.querySelectorAll('#laborTable tbody tr.labor-row');
+  rows.forEach(function(row) {
+    var text = row.textContent.toLowerCase();
+    var match = text.indexOf(filter) > -1;
+    row.style.display = match ? '' : 'none';
+    var next = row.nextElementSibling;
+    if (next && !next.classList.contains('labor-row')) {
+      next.style.display = 'none';
+    }
+  });
+}
+</script>
+{% endif %}
+
+{% if eval_criteria %}
+<h2>Evaluation Criteria</h2>
+<table>
+  <thead><tr><th>#</th><th>Factor</th><th>Weight</th><th>Phase</th><th>Rating Method</th><th>Page Limit</th></tr></thead>
+  <tbody>
+  {% for c in eval_criteria %}
+  <tr>
+    <td>{{ c.factor_number or '' }}</td>
+    <td>{{ c.factor_name or '' }}</td>
+    <td>{{ c.factor_weight or '' }}</td>
+    <td>{{ c.evaluation_phase or '' }}</td>
+    <td>{{ c.rating_method or '' }}</td>
+    <td>{{ c.page_limit or '' }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% for c in eval_criteria %}
+{% if c.subfactors %}
+<h3>{{ c.factor_name }} — Subfactors</h3>
+<ul>{% for s in c.subfactors %}<li>{{ s }}</li>{% endfor %}</ul>
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if not documents and not sow_analysis and not eval_criteria %}
+<div class="section">
+  <p><em>No parsed documents or analysis available for this opportunity. Run <code>collect_documents.py</code> to populate.</em></p>
+</div>
+{% endif %}
+{% endblock %}

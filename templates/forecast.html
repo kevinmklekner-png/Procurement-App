@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Procurement Forecast — Procurement{% endblock %}
+{% block content %}
+<h1>Procurement Forecast</h1>
+<p class="meta">Upcoming competitive opportunities from agency procurement forecasts</p>
+
+<div class="stat-grid">
+  <div class="stat-box">
+    <div class="label">Total Forecast</div>
+    <div class="value">{{ total }}</div>
+  </div>
+  {% for agency, cnt in by_agency %}
+  <div class="stat-box" style="background:#0f3460;">
+    <div class="label">{{ agency }}</div>
+    <div class="value">{{ cnt }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="stat-grid">
+  {% for q, cnt in by_quarter %}
+  <div class="stat-box" style="background:#1a1a2e;">
+    <div class="label">{{ q }}</div>
+    <div class="value">{{ cnt }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="section">
+<h3>By Acquisition Strategy</h3>
+<div class="stat-grid">
+  {% for strat, cnt in by_strategy %}
+  <div class="stat-box" style="background:#1a1a2e;">
+    <div class="label">{{ strat }}</div>
+    <div class="value">{{ cnt }}</div>
+  </div>
+  {% endfor %}
+</div>
+</div>
+
+<h2>Filter Opportunities</h2>
+<form method="get" action="/forecast">
+  <div class="form-row">
+    <div class="form-group">
+      <label>Agency</label>
+      <select name="agency">
+        <option value="">All</option>
+        {% for a in agencies %}
+        <option value="{{ a }}" {% if filters.agency == a %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Quarter</label>
+      <select name="quarter">
+        <option value="">All</option>
+        {% for q in quarters %}
+        <option value="{{ q }}" {% if filters.quarter == q %}selected{% endif %}>{{ q }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Office</label>
+      <select name="office">
+        <option value="">All</option>
+        {% for o in offices %}
+        <option value="{{ o }}" {% if filters.office == o %}selected{% endif %}>{{ o }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Strategy</label>
+      <select name="strategy">
+        <option value="">All</option>
+        {% for s in strategies %}
+        <option value="{{ s }}" {% if filters.strategy == s %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit">Filter</button>
+  </div>
+</form>
+
+<h2>Opportunities ({{ rows|length }})</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Agency</th>
+      <th>Office</th>
+      <th>Project Description</th>
+      <th>Est. Amount</th>
+      <th>Strategy</th>
+      <th>Quarter</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in rows %}
+  <tr>
+    <td>{{ r.agency }}</td>
+    <td><span title="{{ r.office_name }}">{{ r.office_code }}</span></td>
+    <td>{{ r.project_description }}</td>
+    <td>{{ r.estimated_amount_category }}</td>
+    <td>{{ r.acquisition_strategy }}</td>
+    <td>{{ r.estimated_quarter }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<div class="section">
+  <h3>Notes</h3>
+  <ul>
+    <li><strong>SAT</strong> = Simplified Acquisition Threshold ($350,000)</li>
+    <li><strong>Open Market</strong> opportunities will be advertised on SAM.gov</li>
+    <li><strong>GSA / NASA SEWP</strong> awards are competed through existing contract vehicles</li>
+    <li><strong>SEC Value Key:</strong> A = $0-$250K, B = $250K-$1M, C = $1M-$2.5M, D = $2.5M-$5M, E = $5M+</li>
+    <li>FY26 runs October 1, 2025 through September 30, 2026</li>
+  </ul>
+  <h3>Sources</h3>
+  <ul>
+    <li><a class="link" href="https://www.fhfa.gov/document/fy26-forecast.pdf">FHFA FY26 Forecast (PDF)</a> — 41 opportunities</li>
+    <li><a class="link" href="https://www.sec.gov/files/contracting-forecast.pdf">SEC Contracting Forecast (PDF)</a> — 60 opportunities</li>
+  </ul>
+</div>
+{% endblock %}

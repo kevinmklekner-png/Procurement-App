@@ -2,8 +2,11 @@
 
 import unittest
 import os
+import sys
 import sqlite3
 from datetime import datetime, timedelta
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'analysis'))
 from database import ProcurementDatabase
 from analytics import ProcurementAnalytics
 

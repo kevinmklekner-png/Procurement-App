@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Search — Procurement{% endblock %}
+{% block content %}
+<h1>Search Opportunities</h1>
+
+<div class="section">
+  <form method="get" action="/search">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Agency</label>
+        <select name="agency">
+          <option value="">All</option>
+          {% for a in agencies %}
+          <option value="{{ a }}" {% if a == filters.agency %}selected{% endif %}>{{ a }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>NAICS Code</label>
+        <select name="naics">
+          <option value="">All</option>
+          {% for n in naics_codes %}
+          <option value="{{ n }}" {% if n == filters.naics %}selected{% endif %}>{{ n }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Set-Aside</label>
+        <select name="set_aside">
+          <option value="">All</option>
+          {% for s in set_asides %}
+          <option value="{{ s }}" {% if s == filters.set_aside %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Posted After</label>
+        <input type="date" name="date_from" value="{{ filters.date_from or '' }}">
+      </div>
+      <div class="form-group">
+        <label>Posted Before</label>
+        <input type="date" name="date_to" value="{{ filters.date_to or '' }}">
+      </div>
+      <div class="form-group">
+        <label>Keyword</label>
+        <input type="text" name="keyword" value="{{ filters.keyword or '' }}" placeholder="Search title...">
+      </div>
+      <button type="submit">Search</button>
+    </div>
+  </form>
+</div>
+
+{% if results is not none %}
+<p class="meta">{{ results|length }} result(s) found</p>
+<table>
+  <thead><tr><th>Title</th><th>Agency</th><th>NAICS</th><th>Set-Aside</th><th>Posted</th><th>Deadline</th></tr></thead>
+  <tbody>
+  {% for r in results %}
+  <tr>
+    <td><a class="link" href="/opportunity/{{ r.notice_id }}">{{ r.title|truncate(55) }}</a></td>
+    <td>{{ r.department or '' }}</td>
+    <td>{{ r.naics_code or '' }}</td>
+    <td>{{ r.set_aside or '' }}</td>
+    <td>{{ r.posted_date or '' }}</td>
+    <td>{{ r.response_deadline or '' }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

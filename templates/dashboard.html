@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Procurement{% endblock %}
+{% block content %}
+<h1>Federal Procurement Dashboard</h1>
+<p class="meta">Market overview across tracked financial regulatory agencies</p>
+
+<div class="stat-grid">
+  <div class="stat-box">
+    <div class="label">Total Opportunities</div>
+    <div class="value">{{ stats.total_opportunities }}</div>
+  </div>
+  <div class="stat-box">
+    <div class="label">Active (Open)</div>
+    <div class="value">{{ stats.active_opportunities }}</div>
+  </div>
+  <div class="stat-box">
+    <div class="label">Last 30 Days</div>
+    <div class="value">{{ stats.last_30_days }}</div>
+  </div>
+  <div class="stat-box">
+    <div class="label">Agencies</div>
+    <div class="value">{{ top_agencies|length }}</div>
+  </div>
+</div>
+
+<h2>Agency Quick Links</h2>
+<div class="stat-grid">
+  {% for a in top_agencies %}
+  <a href="/agency/{{ a.department }}" class="stat-box" style="text-decoration:none;">
+    <div class="label">{{ a.department }}</div>
+    <div class="value">{{ a.total_opportunities }}</div>
+  </a>
+  {% endfor %}
+</div>
+
+<h2>Procurement Forecast</h2>
+<div class="stat-grid">
+  <div class="stat-box" style="background:#0f3460;">
+    <div class="label">Total Forecast Opps</div>
+    <div class="value">{{ forecast_stats.total }}</div>
+  </div>
+  {% for agency, cnt in forecast_by_agency %}
+  <div class="stat-box" style="background:#0f3460;">
+    <div class="label">{{ agency }}</div>
+    <div class="value">{{ cnt }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% if forecast_upcoming %}
+<table>
+  <thead><tr><th>Agency</th><th>Project</th><th>Office</th><th>Est. Amount</th><th>Strategy</th><th>Quarter</th></tr></thead>
+  <tbody>
+  {% for f in forecast_upcoming %}
+  <tr>
+    <td>{{ f.agency }}</td>
+    <td>{{ f.project_description|truncate(55) }}</td>
+    <td>{{ f.office_code }}</td>
+    <td>{{ f.estimated_amount_category }}</td>
+    <td>{{ f.acquisition_strategy }}</td>
+    <td>{{ f.estimated_quarter }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p><a class="link" href="/forecast">View all {{ forecast_stats.total }} forecast opportunities &rarr;</a></p>
+{% endif %}
+
+<h2>Recent Opportunities</h2>
+<table>
+  <thead><tr><th>Title</th><th>Agency</th><th>NAICS</th><th>Set-Aside</th><th>Posted</th><th>Deadline</th></tr></thead>
+  <tbody>
+  {% for opp in recent %}
+  <tr>
+    <td><a class="link" href="/opportunity/{{ opp.notice_id }}">{{ opp.title|truncate(60) }}</a></td>
+    <td>{{ opp.department }}</td>
+    <td>{{ opp.naics_code or '' }}</td>
+    <td>{% if opp.is_small_business_setaside %}<span class="badge badge-sb">SB</span>{% endif %} {{ opp.set_aside or '' }}</td>
+    <td>{{ opp.posted_date or '' }}</td>
+    <td>{{ opp.response_deadline or '' }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

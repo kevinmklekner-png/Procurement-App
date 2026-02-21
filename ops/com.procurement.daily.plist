@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.procurement.daily</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>
+cd /Users/kleknerblaser/Desktop/Procurement\ App/pipeline &amp;&amp; \
+export SAM_API_KEY="SAM-4948cfd9-6669-45c9-b2a4-cbc8c07ef4ef" &amp;&amp; \
+/usr/bin/python3 -u collect_data.py daily &amp;&amp; \
+/usr/bin/python3 -u collect_agencies.py &amp;&amp; \
+/usr/bin/python3 -u collect_documents.py --all &amp;&amp; \
+/usr/bin/python3 -u run_reports.py daily
+        </string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>6</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/procurement_daily.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/procurement_daily.log</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

@@ -3,15 +3,19 @@ Database schema for comprehensive federal procurement data collection.
 This supports building a data analytics business.
 """
 
+import os
 import sqlite3
 from datetime import datetime
 from typing import Optional
 
+_PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+_DEFAULT_DB = os.path.join(_PROJECT_ROOT, 'db', 'federal_procurement.db')
+
 
 class ProcurementDatabase:
     """Database for storing and analyzing federal procurement data."""
-    
-    def __init__(self, db_path: str = 'federal_procurement.db'):
+
+    def __init__(self, db_path: str = _DEFAULT_DB):
         """Initialize database connection and create tables."""
         self.db_path = db_path
         self.conn = sqlite3.connect(db_path)
@@ -152,15 +156,232 @@ class ProcurementDatabase:
             )
         ''')
         
+        # Downloaded documents — one row per file
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS opportunity_documents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                solicitation_id INTEGER,
+                notice_id TEXT NOT NULL,
+                filename TEXT,
+                file_url TEXT UNIQUE,
+                file_type TEXT,
+                doc_role TEXT DEFAULT 'unknown',
+                raw_text TEXT,
+                description_html TEXT,
+                download_status TEXT DEFAULT 'pending',
+                parse_status TEXT DEFAULT 'pending',
+                error_message TEXT,
+                created_at TEXT,
+                updated_at TEXT,
+                FOREIGN KEY (solicitation_id) REFERENCES solicitations (id)
+            )
+        ''')
+
+        # SOW/PWS structured extraction — one row per SOW document
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS sow_analysis (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                document_id INTEGER NOT NULL,
+                solicitation_id INTEGER,
+                notice_id TEXT,
+                scope_summary TEXT,
+                period_of_performance TEXT,
+                place_of_performance TEXT,
+                key_tasks TEXT,
+                labor_categories TEXT,
+                deliverables TEXT,
+                compliance_reqs TEXT,
+                ordering_mechanism TEXT,
+                billing_instructions TEXT,
+                confidence_score REAL,
+                extraction_method TEXT DEFAULT 'regex',
+                created_at TEXT,
+                FOREIGN KEY (document_id) REFERENCES opportunity_documents (id),
+                FOREIGN KEY (solicitation_id) REFERENCES solicitations (id)
+            )
+        ''')
+
+        # Evaluation criteria — one row per evaluation factor
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS evaluation_criteria (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                document_id INTEGER NOT NULL,
+                solicitation_id INTEGER,
+                notice_id TEXT,
+                evaluation_phase TEXT,
+                factor_number INTEGER,
+                factor_name TEXT,
+                factor_weight TEXT,
+                subfactors TEXT,
+                description TEXT,
+                page_limit TEXT,
+                rating_method TEXT,
+                created_at TEXT,
+                FOREIGN KEY (document_id) REFERENCES opportunity_documents (id),
+                FOREIGN KEY (solicitation_id) REFERENCES solicitations (id)
+            )
+        ''')
+
+        # Forecast opportunities from agency procurement forecasts
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS forecast_opportunities (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                agency TEXT DEFAULT 'FHFA',
+                office_code TEXT,
+                office_name TEXT,
+                project_description TEXT,
+                estimated_amount_category TEXT,
+                estimated_value_low REAL,
+                estimated_value_high REAL,
+                acquisition_strategy TEXT,
+                estimated_quarter TEXT,
+                estimated_award_date TEXT,
+                fiscal_year INTEGER DEFAULT 2026,
+                source_document TEXT,
+                source_url TEXT,
+                collected_date TEXT,
+                notes TEXT
+            )
+        ''')
+
+        # Structured labor categories from Excel pricing sheets
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS labor_categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                notice_id TEXT,
+                solicitation_id INTEGER,
+                source_file TEXT,
+                category_name TEXT,
+                category_title TEXT,
+                clin_number TEXT,
+                hourly_rate REAL,
+                estimated_hours REAL,
+                extended_price REAL,
+                period_name TEXT,
+                period_number INTEGER,
+                site_type TEXT,
+                agency TEXT,
+                data_source TEXT DEFAULT 'excel_import',
+                created_at TEXT,
+                FOREIGN KEY (solicitation_id) REFERENCES solicitations (id)
+            )
+        ''')
+
         # Create indexes for common queries
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_posted_date ON solicitations(posted_date)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_department ON solicitations(department)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_naics ON solicitations(naics_code)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_set_aside ON solicitations(set_aside)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_response_deadline ON solicitations(response_deadline)')
-        
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_doc_notice ON opportunity_documents(notice_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_doc_role ON opportunity_documents(doc_role)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_sow_notice ON sow_analysis(notice_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_eval_notice ON evaluation_criteria(notice_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_forecast_agency ON forecast_opportunities(agency)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_labor_notice ON labor_categories(notice_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_labor_agency ON labor_categories(agency)')
+
         self.conn.commit()
     
+    def insert_forecast_opportunity(self, data: dict) -> Optional[int]:
+        """Insert a forecast opportunity if it doesn't already exist.
+
+        Uses (agency, project_description, fiscal_year) as a uniqueness key.
+        Returns row ID if inserted, None if duplicate or error.
+        """
+        cursor = self.conn.cursor()
+        try:
+            # Check for existing entry
+            cursor.execute('''
+                SELECT id FROM forecast_opportunities
+                WHERE agency = ? AND project_description = ? AND fiscal_year = ?
+            ''', (data.get('agency'), data.get('project_description'), data.get('fiscal_year', 2026)))
+            if cursor.fetchone():
+                return None  # duplicate
+
+            cursor.execute('''
+                INSERT INTO forecast_opportunities
+                    (agency, office_code, office_name, project_description,
+                     estimated_amount_category, estimated_value_low, estimated_value_high,
+                     acquisition_strategy, estimated_quarter, estimated_award_date,
+                     fiscal_year, source_document, source_url, collected_date, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                data.get('agency'),
+                data.get('office_code', ''),
+                data.get('office_name', ''),
+                data.get('project_description'),
+                data.get('estimated_amount_category', ''),
+                data.get('estimated_value_low'),
+                data.get('estimated_value_high'),
+                data.get('acquisition_strategy', ''),
+                data.get('estimated_quarter', ''),
+                data.get('estimated_award_date', ''),
+                data.get('fiscal_year', 2026),
+                data.get('source_document', ''),
+                data.get('source_url', ''),
+                datetime.now().isoformat(),
+                data.get('notes', ''),
+            ))
+            self.conn.commit()
+            return cursor.lastrowid
+        except Exception as e:
+            print(f"Error inserting forecast opportunity: {e}")
+            self.conn.rollback()
+            return None
+
+    def insert_labor_category(self, data: dict) -> Optional[int]:
+        """Insert a labor category if it doesn't already exist.
+
+        Uses (notice_id, category_name, period_number, site_type) as uniqueness key.
+        Returns row ID if inserted, None if duplicate or error.
+        """
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute('''
+                SELECT id FROM labor_categories
+                WHERE notice_id = ? AND category_name = ?
+                  AND period_number = ? AND site_type IS ?
+            ''', (
+                data.get('notice_id'),
+                data.get('category_name'),
+                data.get('period_number'),
+                data.get('site_type'),
+            ))
+            if cursor.fetchone():
+                return None  # duplicate
+
+            cursor.execute('''
+                INSERT INTO labor_categories
+                    (notice_id, solicitation_id, source_file, category_name,
+                     category_title, clin_number, hourly_rate, estimated_hours,
+                     extended_price, period_name, period_number, site_type,
+                     agency, data_source, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                data.get('notice_id'),
+                data.get('solicitation_id'),
+                data.get('source_file', ''),
+                data.get('category_name'),
+                data.get('category_title', ''),
+                data.get('clin_number', ''),
+                data.get('hourly_rate'),
+                data.get('estimated_hours'),
+                data.get('extended_price'),
+                data.get('period_name', ''),
+                data.get('period_number'),
+                data.get('site_type'),
+                data.get('agency', ''),
+                data.get('data_source', 'excel_import'),
+                datetime.now().isoformat(),
+            ))
+            self.conn.commit()
+            return cursor.lastrowid
+        except Exception as e:
+            print(f"Error inserting labor category: {e}")
+            self.conn.rollback()
+            return None
+
     def insert_solicitation(self, sol_data: dict) -> Optional[int]:
         """
         Insert or update a solicitation.
