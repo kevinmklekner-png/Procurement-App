@@ -106,7 +106,7 @@ from doc_parser import extract_text, classify_document
 ### Security
 - API key via environment variable only, never in source files
 - The launchd plist has a hardcoded key (known issue)
-- No `.gitignore` exists yet — be careful not to commit `*.db`, `data/`, `.env`
+- `.gitignore` excludes `*.db`, `data/`, `reports/`, `.env`, `.DS_Store`
 
 ### Database Schema (key tables)
 - `solicitations` — unique on `notice_id`
